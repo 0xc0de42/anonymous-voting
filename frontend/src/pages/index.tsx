@@ -3,13 +3,26 @@ import type { NextPage } from 'next';
 import Head from 'next/head';
 import styles from '../styles/Home.module.css';
 import { VotingInterface } from "../components/VotingInterface";
-import { myTokenModulePrivateVotingAddress } from "../generated";
+
+// 1) Import the compiled artifact (ABI lives here if needed)
+import voteFactoryArtifact from '../../open_vote_contracts/out/VoteFactory.sol/VoteFactory.json';
+
+// 2) Import the Sepolia broadcast log to get the deployed address
+//    (this file is created by: forge script ... --broadcast)
+import broadcast from '../../open_vote_contracts/broadcast/DeployOVFactory.s.sol/11155111/run-latest.json';
+
+// Derive the VoteFactory address from the broadcast transactions
+const SEPOLIA_CHAIN_ID = 11155111 as const;
+const contractAddress =
+  (broadcast.transactions.find((tx: any) => tx.contractName === 'VoteFactory')?.contractAddress ??
+    process.env.NEXT_PUBLIC_VOTE_FACTORY_ADDRESS_SEPOLIA) as `0x${string}`;
+
+// Optional: the ABI if/when you need it elsewhere
+export const voteFactoryAbi = (voteFactoryArtifact as any).abi as readonly unknown[];
 
 const Home: NextPage = () => {
-  const contractAddress = myTokenModulePrivateVotingAddress[420420422];
-
   return (
-<div className="flex flex-col min-h-screen text-center text-sm">
+    <div className="flex flex-col min-h-screen text-center text-sm">
       <Head>
         <title>PolkaVote</title>
         <meta
@@ -43,6 +56,7 @@ const Home: NextPage = () => {
       </nav>
 
       <main className={styles.main} style={{ flex: 1 }}>
+        {/* Use Sepolia address */}
         <VotingInterface contractAddress={contractAddress} />
       </main>
 
