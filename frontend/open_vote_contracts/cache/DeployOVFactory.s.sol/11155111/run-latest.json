@@ -1,0 +1,16 @@
+{
+  "transactions": [
+    {
+      "rpc": "https://eth-sepolia.api.onfinality.io/public"
+    },
+    {
+      "rpc": "https://eth-sepolia.api.onfinality.io/public"
+    },
+    {
+      "rpc": "https://eth-sepolia.api.onfinality.io/public"
+    },
+    {
+      "rpc": "https://eth-sepolia.api.onfinality.io/public"
+    }
+  ]
+}
