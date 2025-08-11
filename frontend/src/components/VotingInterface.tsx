@@ -10,7 +10,13 @@ import RecentVoteItem, { type ProposalStats } from './RecentVoteItem';
 
 import VoteJson from '../../open_vote_contracts/out/Vote.sol/Vote.json';
 import type { InscriptionInputs } from '../../types/proposal';
-import { getRandomValue, modExp, generateEmptyProof, bigIntToBytes32 } from '../services/cryptography';
+import Crypto, { getRandomValue,
+      modExp,
+      generateEmptyProof,
+      generateInscriptionProof,
+      generateVotingProof,
+      bigIntToBytes32,
+      u8ToHex } from '../services/cryptography';
 
 import {
   UiVote,
@@ -19,7 +25,7 @@ import {
   createVote,
   waitForReceipt,
   inscribeOnVote,
-  // castVoteOnVote,
+  castVoteOnVote,
 } from '../services/vote';
 
 export interface VotingInterfaceProps {
@@ -148,7 +154,11 @@ export function VotingInterface({ contractAddress }: VotingInterfaceProps) {
       setBusyByAddr((m) => ({ ...m, [voteAddress]: true }));
       
       // Get inputs for this vote`
-      const inputs: InscriptionInputs = { proof: generateEmptyProof(), encryptedRandomValue: bigIntToBytes32(getRandomValue())};
+      let randomValue = bigIntToBytes32(getRandomValue());
+      let encryptedRandomValue = modExp(Crypto.generator, randomValue);
+      let encryptedRandomValueBytes = bigIntToBytes32(encryptedRandomValue);
+      let { proof, publicInputs } = await generateInscriptionProof(randomValue, encryptedRandomValueBytes, appendLog);
+      const inputs: InscriptionInputs = { proof: u8ToHex(proof), encryptedRandomValue: encryptedRandomValueBytes };
       // const inputs = inscriptionByAddr[voteAddress];
       if (!inputs) {
         appendLog(`⚠️ Missing inscription inputs for ${voteAddress}. Provide {proof, encryptedRandomValue}.`);
@@ -183,23 +193,35 @@ export function VotingInterface({ contractAddress }: VotingInterfaceProps) {
 
   const onVote = async (voteAddress: `0x${string}`, value: boolean) => {
     try {
-      setBusyByAddr((m) => ({ ...m, [voteAddress]: true }));
-      appendLog(`${value ? 'Yay' : 'Nay'} clicked for ${voteAddress} (wire proof/encryptedVote and call castVoteOnVote)`);
-      // Example (when you have voting proof/inputs ready):
-      // const tx = await castVoteOnVote({
-      //   writeContractAsync,
-      //   voteAddress,
-      //   voteAbi: (VoteJson as any).abi,
-      //   functionName: 'vote',
-      //   args: [proof, encryptedVote], // (bytes, bytes32) per your contract
-      // });
-      // await waitForReceipt(tx);
-      // await refreshRecent();
+      setBusyByAddr(m => ({ ...m, [voteAddress]: true }));
+
+      const voteDegree = value ? 1n : 0n;              // yay=1, nay=0
+      const voteHex = bigIntToBytes32(voteDegree);     // 0x… (bytes32)
+      const enc = modExp(Crypto.generator, voteDegree);
+      const encHex = bigIntToBytes32(enc);             // 0x… (bytes32)
+
+      // Prove (logs go to SidePanel via appendLog)
+      const { proof } = await generateVotingProof(voteHex, encHex, appendLog);
+      const proofHex = u8ToHex(proof);                 // bytes -> 0x…
+
+      appendLog(`Vote: sending tx for ${voteAddress}…`);
+      const tx = await castVoteOnVote({
+        writeContractAsync,
+        voteAddress,
+        voteAbi: (VoteJson as any).abi,
+        functionName: 'vote',                          // vote(bytes,bytes32)
+        args: [proofHex, encHex],
+      });
+
+      appendLog(`✅ vote tx sent: ${tx}`);
+      const receipt = await waitForReceipt(tx);
+      appendLog(`vote confirmed in block ${receipt.blockNumber?.toString?.() ?? ''}`);
+      // optionally: await refreshRecent();
     } catch (e) {
       console.error('vote failed:', e);
       appendLog(`❌ vote failed: ${String(e)}`);
     } finally {
-      setBusyByAddr((m) => ({ ...m, [voteAddress]: false }));
+      setBusyByAddr(m => ({ ...m, [voteAddress]: false }));
     }
   };
 
