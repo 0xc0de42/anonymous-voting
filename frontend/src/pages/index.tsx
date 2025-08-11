@@ -22,7 +22,7 @@ export const voteFactoryAbi = (voteFactoryArtifact as any).abi as readonly unkno
 
 const Home: NextPage = () => {
   return (
-    <div className="flex flex-col min-h-screen text-center text-sm">
+    <div className="flex flex-col min-h-screen text-center text-sm p-4">
       <Head>
         <title>PolkaVote</title>
         <meta

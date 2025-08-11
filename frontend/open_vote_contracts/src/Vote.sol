@@ -17,7 +17,6 @@ contract Vote is Ownable {
     bytes32[] public s_encrypted_votes;
     uint256 public s_votedVoters = 0;
     uint256 public s_maximalNumberOfVoters;
-    address[] public s_voters;
     bytes32 public s_generator;
     uint256 constant FIELD_MODULUS = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
     ModArithmetic s_modAr;
@@ -41,6 +40,14 @@ contract Vote is Ownable {
     error Voting__FailedToDecryptFinalVote();
     error Voter__InvalidIndex(uint256 voterIndex, uint256 maximalNumberOfVoters);
 
+    struct Voter {
+        address voterAddress;
+        bool hasVoted;
+    }
+    
+    Voter[] public s_voters;
+    mapping(address => uint256) public s_voterIndex; // To efficiently find voter index
+
     constructor(
         IInscriptionVerifier _inscriptionVerifier,
         IVotingVerifier _votingVerifier,
@@ -58,7 +65,9 @@ contract Vote is Ownable {
         if (verifyInscription(proof, encrypted_random_value)) {
             s_encrypted_random_values[msg.sender] = encrypted_random_value;
             s_enscribedVoters += 1;
-            s_voters.push(msg.sender);
+            s_voters.push(Voter(msg.sender, false));
+            s_voterIndex[msg.sender] = s_enscribedVoters - 1;
+
             emit Inscription__VoterEnscribed(msg.sender, s_enscribedVoters);
 
             if (s_enscribedVoters == s_maximalNumberOfVoters) {
@@ -66,6 +75,7 @@ contract Vote is Ownable {
             }
         }
     }
+
 
     function verifyInscription(bytes calldata proof, bytes32 encrypted_random_value) internal returns (bool) {
         if (s_enscribedVoters >= s_maximalNumberOfVoters) {
@@ -93,14 +103,14 @@ contract Vote is Ownable {
             revert Inscription__IsNotClosedYet(s_votedVoters, s_enscribedVoters);
         }
 
-        // s_aggregated_multiplication.push(
-        //     uint256(s_encrypted_random_values[s_voters[0]])
-        // );
+        // Initialize with the first voter's encrypted value
+        address firstVoter = s_voters[0].voterAddress;
+        uint256 firstEncrypted = uint256(s_encrypted_random_values[firstVoter]);
+        s_aggregated_multiplication.push(firstEncrypted);
 
-        s_aggregated_multiplication.push(uint256(1));
-
+        // Continue with the rest of the voters
         for (uint256 i = 1; i < s_voters.length; i++) {
-            address voter = s_voters[i - 1];
+            address voter = s_voters[i].voterAddress;  // Fixed: use i instead of i-1
             uint256 encrypted = uint256(s_encrypted_random_values[voter]);
 
             s_aggregated_multiplication.push(s_modAr.modMul(s_aggregated_multiplication[i - 1], encrypted));
@@ -132,10 +142,24 @@ contract Vote is Ownable {
         if (verifyVoting(proof, encrypted_vote)) {
             s_encrypted_votes.push(encrypted_vote);
             s_votedVoters += 1;
-        }
+            
+            // Mark voter as having voted - ONLY when verification succeeds
+            uint256 voterIdx = s_voterIndex[msg.sender];
+            s_voters[voterIdx].hasVoted = true;
 
-        if (s_enscribedVoters == s_votedVoters) {
-            evaluateFinalVote();
+            if (s_enscribedVoters == s_votedVoters) {
+                evaluateFinalVote();
+            }
+        }
+    }
+
+    function getRegisteredVoters() external view returns (address[] memory voters, bool[] memory hasVoted) {
+        voters = new address[](s_voters.length);
+        hasVoted = new bool[](s_voters.length);
+        
+        for (uint256 i = 0; i < s_voters.length; i++) {
+            voters[i] = s_voters[i].voterAddress;
+            hasVoted[i] = s_voters[i].hasVoted;
         }
     }
 

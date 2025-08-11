@@ -7,6 +7,7 @@ import { WagmiProvider } from 'wagmi';
 import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
 
 import { config } from '../wagmi';
+import { NetworkSwitcher } from '../components/NetworkSwitcher';
 
 const client = new QueryClient();
 
@@ -15,6 +16,7 @@ function MyApp({ Component, pageProps }: AppProps) {
     <WagmiProvider config={config}>
       <QueryClientProvider client={client}>
         <RainbowKitProvider>
+          <NetworkSwitcher />
           <Component {...pageProps} />
         </RainbowKitProvider>
       </QueryClientProvider>

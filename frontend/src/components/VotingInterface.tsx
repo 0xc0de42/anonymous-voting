@@ -10,13 +10,15 @@ import RecentVoteItem, { type ProposalStats } from './RecentVoteItem';
 
 import VoteJson from '../../open_vote_contracts/out/Vote.sol/Vote.json';
 import type { InscriptionInputs } from '../../types/proposal';
-import Crypto, { getRandomValue,
-      modExp,
-      generateEmptyProof,
-      generateInscriptionProof,
-      generateVotingProof,
-      bigIntToBytes32,
-      u8ToHex } from '../services/cryptography';
+import Crypto, {
+  getRandomValue,
+  modExp,
+  generateEmptyProof,
+  generateInscriptionProof,
+  generateVotingProof,
+  bigIntToBytes32,
+  u8ToHex
+} from '../services/cryptography';
 
 import {
   UiVote,
@@ -50,7 +52,7 @@ export function VotingInterface({ contractAddress }: VotingInterfaceProps) {
 
   // recent votes
   const [recentVotesState, setRecentVotesState] = useState<UiVote[]>([]);
-  const [nextId, setNextId] = useState<number | undefined>(undefined);
+  //const [nextId, setNextId] = useState<number | undefined>(undefined);
 
   // per-vote busy map for button UX
   const [busyByAddr, setBusyByAddr] = useState<Record<string, boolean>>({});
@@ -67,35 +69,37 @@ export function VotingInterface({ contractAddress }: VotingInterfaceProps) {
   //   // },
   // });
 
+  // Add state to track voter statuses
+  const [voterStatusByAddr, setVoterStatusByAddr] = useState<Record<string, { isRegistered: boolean; hasVoted: boolean }>>({});
+
   const appendLog = useCallback((line: string) => {
     setLogs((prev) => [...prev, line]);
   }, []);
 
-  const refreshRecent = useCallback(async () => {
-    try {
-      setLoading(true);
-      const list = await getRecentVotes({
-        factoryAddress: contractAddress as `0x${string}`,
-        limit: 10,
-      });
-      setRecentVotesState(list);
-
-      const total = await getTotalVotes({
-        factoryAddress: contractAddress as `0x${string}`,
-      });
-      setNextId(Number(total) + 1);
-    } catch (err) {
-      console.error('refreshRecent failed:', err);
-      appendLog(`❌ refreshRecent failed: ${String(err)}`);
-    } finally {
-      setLoading(false);
-    }
-  }, [appendLog, contractAddress]);
-
+  // Add this useEffect to fetch recent votes when component mounts
   useEffect(() => {
-    refreshRecent();
-  }, [refreshRecent]);
+    const fetchRecentVotes = async () => {
+      try {
+        console.log('Fetching recent votes for factory:', contractAddress);
+        const votes = await getRecentVotes({
+          factoryAddress: contractAddress as `0x${string}`,
+          // You may need to specify a limit here based on your getRecentVotes implementation
+        });
+        console.log('Fetched votes:', votes);
+        setRecentVotesState(votes);
+        appendLog(`✅ Loaded ${votes.length} proposals`);
+      } catch (error) {
+        console.error('Failed to fetch recent votes:', error);
+        appendLog(`❌ Failed to fetch proposals: ${String(error)}`);
+      }
+    };
 
+    if (contractAddress) {
+      fetchRecentVotes();
+    }
+  }, [contractAddress, appendLog]);
+
+  // Also add a function to refresh votes after creating a new one
   const handleCreateProposal = async () => {
     const { name, description, numberOfVoters } = newProposal;
 
@@ -139,7 +143,17 @@ export function VotingInterface({ contractAddress }: VotingInterfaceProps) {
 
       setNewProposal({ name: '', description: '', numberOfVoters: '' });
       setShowCreateForm(false);
-      await refreshRecent();
+
+      // Refresh the votes list after successful creation
+      try {
+        const votes = await getRecentVotes({
+          factoryAddress: contractAddress as `0x${string}`,
+        });
+        setRecentVotesState(votes);
+      } catch (error) {
+        console.error('Failed to refresh votes:', error);
+        appendLog(`⚠️ Failed to refresh proposals: ${String(error)}`);
+      }
     } catch (err) {
       console.error('Error sending createVote tx:', err);
       appendLog(`❌ createVote failed: ${String(err)}`);
@@ -148,11 +162,10 @@ export function VotingInterface({ contractAddress }: VotingInterfaceProps) {
     }
   };
 
-  
   const onInscribe = async (voteAddress: `0x${string}`) => {
     try {
       setBusyByAddr((m) => ({ ...m, [voteAddress]: true }));
-      
+
       // Get inputs for this vote`
       let randomValue = bigIntToBytes32(getRandomValue());
       let encryptedRandomValue = modExp(Crypto.generator, randomValue);
@@ -181,8 +194,7 @@ export function VotingInterface({ contractAddress }: VotingInterfaceProps) {
         `enscribeVoter confirmed in block ${receipt.blockNumber?.toString?.() ?? ''}`
       );
 
-      // Optional: refresh list or per-vote stats here
-      // await refreshRecent();
+      // Refresh voter status after successful inscription
     } catch (e) {
       console.error('inscribe failed:', e);
       appendLog(`❌ enscribeVoter failed: ${String(e)}`);
@@ -216,7 +228,8 @@ export function VotingInterface({ contractAddress }: VotingInterfaceProps) {
       appendLog(`✅ vote tx sent: ${tx}`);
       const receipt = await waitForReceipt(tx);
       appendLog(`vote confirmed in block ${receipt.blockNumber?.toString?.() ?? ''}`);
-      // optionally: await refreshRecent();
+
+      // Refresh voter status after successful vote
     } catch (e) {
       console.error('vote failed:', e);
       appendLog(`❌ vote failed: ${String(e)}`);
@@ -247,7 +260,7 @@ export function VotingInterface({ contractAddress }: VotingInterfaceProps) {
               className="bg-gradient-to-r from-pink-500 to-fuchsia-500 hover:from-pink-600 hover:to-fuchsia-600 text-white font-extrabold py-3 px-6 rounded-xl shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-400"
               disabled={!address}
             >
-              + Create Vote
+              Create Proposal
             </button>
           </div>
 
@@ -259,19 +272,41 @@ export function VotingInterface({ contractAddress }: VotingInterfaceProps) {
             onCreate={handleCreateProposal}
             onCancel={() => setShowCreateForm(false)}
             isCreating={loading}
-            nextId={nextId}
+          //nextId={nextId}
           />
 
           {/* Recent Votes (up to 10 newest) */}
           <div className="grid gap-6">
             {recentList.length === 0 ? (
               <div className="text-center py-12 text-gray-400 text-lg font-semibold">
-                No votes found. Create the first one!
+                No proposals found. Create the first one!
               </div>
             ) : (
               recentList.map((v) => {
-                const stats = statsByAddr[v.voteAddress] as ProposalStats | undefined;
+                // Get voter status for this vote
+                console.log('Fetching voter status for:', v.voteAddress);
+                console.log('Registered voters:', v.registeredVoters);
+                const voterStatus = voterStatusByAddr[v.voteAddress] || { isRegistered: false, hasVoted: false };
+
+                // Check if current user is registered and has voted
+                const userAddress = address?.toLowerCase();
+                const userIndex = v.registeredVoters.voters.findIndex(voter => voter.toLowerCase() === userAddress);
+                const userInscribed = userIndex >= 0;
+                const userHasVoted = userIndex >= 0 ? v.registeredVoters.hasVoted[userIndex] : false;
+
+                // Compute stats dynamically from the vote data
+                const stats: ProposalStats = {
+                  maxVoters: Number(v.numberOfVoters), // Convert bigint to number
+                  inscribed: v.registeredVoters.voters.length,
+                  voters: v.registeredVoters.voters.map((voter) => voter.toLowerCase()),
+                  userInscribed: userInscribed,
+                  hasVoted: userHasVoted,
+                  // Add the actual vote count
+                  votesCount: v.registeredVoters.hasVoted.filter(voted => voted).length
+                };
                 const busy = !!busyByAddr[v.voteAddress];
+
+                console.log('Vote stats:', { voteAddress: v.voteAddress, stats });
 
                 return (
                   <RecentVoteItem

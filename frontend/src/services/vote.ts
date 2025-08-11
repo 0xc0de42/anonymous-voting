@@ -6,19 +6,26 @@ import type { WriteContractMutateAsync } from 'wagmi/query';
 
 import PublicClientSingleton from './client';
 import VoteFactoryJson from '../../open_vote_contracts/out/VoteFactory.sol/VoteFactory.json';
+import VoteJson from '../../open_vote_contracts/out/Vote.sol/Vote.json';
 
-export type UiVote = {
+export interface UiVote {
   id: bigint;
-  voteAddress: Address;
+  voteAddress: `0x${string}`;
   name: string;
   description: string;
-};
+  numberOfVoters: number;
+  registeredVoters: {
+    voters: `0x${string}`[];
+    hasVoted: boolean[];
+  };
+}
 
 export type CreateVoteParams = {
   name: string;
   description: string;
   numberOfVoters: number;
 };
+
 
 // Use Wagmi’s exact type for writeContractAsync so it's assignable.
 export type WriteAsync = WriteContractMutateAsync<Config, unknown>;
@@ -53,15 +60,15 @@ export async function getVoteAddressById(opts: {
 export async function getVoteMetadata(opts: {
   factoryAddress: Address;
   id: bigint;
-}): Promise<{ name: string; description: string }> {
+}): Promise<{ name: string; description: string; numberOfVoters: number }> {
   const publicClient = PublicClientSingleton.get();
-  const [name, description] = (await publicClient.readContract({
+  const [name, description, numberOfVoters] = (await publicClient.readContract({
     address: opts.factoryAddress,
     abi: (VoteFactoryJson as any).abi,
     functionName: 'getMetadata',
     args: [opts.id],
-  })) as [string, string];
-  return { name, description };
+  })) as [string, string, number];
+  return { name, description, numberOfVoters };
 }
 
 /** Fetch the N most recent votes (newest -> oldest). */
@@ -72,51 +79,104 @@ export async function getRecentVotes(opts: {
   const { factoryAddress, limit = 10 } = opts;
   const publicClient = PublicClientSingleton.get();
 
-  const total = await getTotalVotes({ factoryAddress });
-  const totalNum = Number(total);
-  const count = Math.min(limit, Math.max(totalNum, 0));
-  if (count <= 0) return [];
+  try {
+    const total = await getTotalVotes({ factoryAddress });
+    console.log(`Total votes from contract: ${total}`);
+    
+    const totalNum = Number(total);
+    const count = Math.min(limit, Math.max(totalNum, 0));
+    console.log(`Will fetch ${count} votes (total: ${totalNum})`);
+    
+    if (count <= 0) {
+      console.log('No votes to fetch, returning empty array');
+      return [];
+    }
 
-  const startId = totalNum - 1;
-  const endId = Math.max(totalNum - count, 0);
+    const startId = totalNum - 1;
+    const endId = Math.max(totalNum - count, 0);
+    console.log(`Fetching votes from ID ${startId} to ${endId}`);
 
-  const contracts: any[] = [];
-  for (let i = startId; i >= endId; i--) {
-    contracts.push(
-      {
-        address: factoryAddress,
-        abi: (VoteFactoryJson as any).abi,
-        functionName: 'getById',
-        args: [BigInt(i)],
-      },
-      {
-        address: factoryAddress,
-        abi: (VoteFactoryJson as any).abi,
-        functionName: 'getMetadata',
-        args: [BigInt(i)],
+    const contracts: any[] = [];
+    for (let i = startId; i >= endId; i--) {
+      contracts.push(
+        {
+          address: factoryAddress,
+          abi: (VoteFactoryJson as any).abi,
+          functionName: 'getById',
+          args: [BigInt(i)],
+        },
+        {
+          address: factoryAddress,
+          abi: (VoteFactoryJson as any).abi,
+          functionName: 'getMetadata',
+          args: [BigInt(i)],
+        }
+      );
+    }
+
+    const results = await publicClient.multicall({ contracts });
+    console.log('Multicall results:', results);
+
+    const stitched: UiVote[] = [];
+    let idx = 0;
+
+    // First, collect all the basic vote data
+    const votePromises: Promise<UiVote>[] = [];
+
+    for (let id = startId; id >= endId; id--) {
+      const byId = results[idx++] as any;
+      const metadata = results[idx++] as any;
+
+      // Check if the multicall results are valid
+      if (!byId?.result) {
+        console.warn(`Failed to get vote address for ID ${id}`);
+        continue;
       }
-    );
+
+      const voteAddress = byId.result as Address;
+      
+      // Handle metadata result safely
+      let name = 'Unknown Vote';
+      let description = 'No description available';
+      let numberOfVoters = 0;
+
+      if (metadata?.result && Array.isArray(metadata.result)) {
+        [name, description, numberOfVoters] = metadata.result as [string, string, number];
+      } else {
+        console.warn(`Failed to get metadata for vote ID ${id}, using fallback values`);
+        // Optionally, try to fetch metadata individually as fallback
+        try {
+          const fallbackMetadata = await getVoteMetadata({ factoryAddress, id: BigInt(id) });
+          name = fallbackMetadata.name;
+          description = fallbackMetadata.description;
+        } catch (error) {
+          console.error(`Fallback metadata fetch failed for ID ${id}:`, error);
+        }
+      }
+
+      // Create promise to fetch registered voters for each vote
+      const votePromise = getRegisteredVoters({
+        voteAddress,
+      }).then((registeredVoters) => ({
+        id: BigInt(id),
+        voteAddress,
+        name,
+        description,
+        numberOfVoters,
+        registeredVoters,
+      }));
+
+      votePromises.push(votePromise);
+    }
+
+    // Wait for all registered voter data to be fetched
+    const votesWithRegisteredVoters = await Promise.all(votePromises);
+
+    return votesWithRegisteredVoters;
+  } catch (error) {
+    console.error('Error in getRecentVotes:', error);
+    throw error;
   }
-
-  const results = await publicClient.multicall({ contracts });
-
-  const stitched: UiVote[] = [];
-  let idx = 0;
-  for (let id = startId; id >= endId; id--) {
-    const byId = results[idx++] as any;
-    const metadata = results[idx++] as any;
-
-    const voteAddress = byId.result as Address;
-    const [name, description] = metadata.result as [string, string];
-
-    stitched.push({
-      id: BigInt(id),
-      voteAddress,
-      name,
-      description,
-    });
-  }
-  return stitched;
 }
 
 /** Create a vote via VoteFactory.createVote(name, description, numberOfVoters). */
@@ -313,7 +373,7 @@ export async function getVoteStats(opts: {
   ] as const;
 
   try {
-    const contracts = defaultCalls.map(c => ({
+    const contracts = defaultCalls.map((c) => ({
       address: voteAddress,
       abi: voteAbi,
       functionName: c.functionName as any,
@@ -344,7 +404,7 @@ export async function getManyVoteStats(opts: {
 }): Promise<Record<string, VoteStats>> {
   const results: Record<string, VoteStats> = {};
   await Promise.all(
-    opts.votes.map(async v => {
+    opts.votes.map(async (v) => {
       results[v.voteAddress] = await getVoteStats(v);
     })
   );
@@ -377,4 +437,25 @@ export async function enscribeVoterTx(opts: {
     args: [proof, encryptedRandomValue],
     chainId,
   });
+}
+
+export async function getRegisteredVoters(opts: {
+  voteAddress: Address;
+}): Promise<{ voters: Address[]; hasVoted: boolean[] }> {
+  const publicClient = PublicClientSingleton.get();
+  const { voteAddress } = opts;
+
+  try {
+    const [voters, hasVoted] = (await publicClient.readContract({
+      address: voteAddress,
+      abi: (VoteJson as any).abi,
+      functionName: 'getRegisteredVoters',
+      args: [],
+    })) as [Address[], boolean[]];
+
+    return { voters, hasVoted };
+  } catch (error) {
+    console.error(`Failed to get registered voters for ${voteAddress}:`, error);
+    return { voters: [], hasVoted: [] };
+  }
 }

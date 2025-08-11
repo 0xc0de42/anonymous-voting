@@ -16,8 +16,8 @@ export type VoteButtonsProps = {
 export default function VoteButtons({
   canInscribe,
   canVote,
-  hasInscribed = false,
-  hasVoted = false,
+  hasInscribed,
+  hasVoted,
   votingOpen = true,
   busy = false,
   onInscribe,
@@ -38,7 +38,7 @@ export default function VoteButtons({
           disabled={disabledGeneral}
           className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-bold py-3 rounded-xl shadow transition"
         >
-          {busy ? 'Working...' : 'Inscribe'}
+          {busy ? 'Working...' : 'Register'}
         </button>
       )}
 
@@ -67,9 +67,11 @@ export default function VoteButtons({
             ? 'You already voted.'
             : hasInscribed
             ? votingOpen
-              ? 'You are inscribed. Waiting for voting state...'
+              ? 'You are registered. Waiting for voting to begin...'
               : 'Voting is closed.'
-            : 'Not eligible to act on this vote.'}
+            : canInscribe
+            ? 'Registration is available above.'
+            : 'Not eligible to participate in this vote.'}
         </div>
       )}
     </div>

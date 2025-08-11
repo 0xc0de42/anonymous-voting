@@ -132,10 +132,19 @@ export default function ProposalItem({
     }
   }
 
+        console.log('hasVoted',hasVoted)
+
   return (
     <div className="border rounded-2xl p-6 bg-white shadow">
       {/* … your header / description / stats … */}
 
+    {/* Debug info (remove in production) */}
+    {process.env.NODE_ENV === 'development' && (
+      <div className="text-xs text-gray-500 mb-2">
+        Debug: hasVoted = {String(hasVoted)}
+      </div>
+    )}
+    
       <VoteButtons
         canInscribe={canInscribe}
         canVote={canVote}

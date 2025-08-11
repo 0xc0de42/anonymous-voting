@@ -14,6 +14,7 @@ contract VoteFactory is Ownable {
     address[] private _votes;
     string[] private _voteNames;
     string[] private _voteDescriptions;
+    uint256[] private _numberOfVoters;
 
     event VoteCreated(
         uint256 indexed id,
@@ -52,6 +53,7 @@ contract VoteFactory is Ownable {
         _votes.push(voteAddr);
         _voteNames.push(name);
         _voteDescriptions.push(description);
+        _numberOfVoters.push(numberOfVoters);
         id = _votes.length - 1;
 
         emit VoteCreated(id, voteAddr, numberOfVoters, generator, name, description);
@@ -66,11 +68,11 @@ contract VoteFactory is Ownable {
     }
 
     /// @notice Get vote name & description
-    function getMetadata(uint256 id) external view returns (string memory name, string memory description) {
+    function getMetadata(uint256 id) external view returns (string memory name, string memory description, uint256 numberOfVoters) {
         if (id >= _votes.length) {
             revert Vote__InvalidVoteId(id, _votes.length);
         }
-        return (_voteNames[id], _voteDescriptions[id]);
+        return (_voteNames[id], _voteDescriptions[id], _numberOfVoters[id]);
     }
 
     /// @notice Total number of votes created

@@ -56,7 +56,7 @@ contract VoteTest is Test {
         string[] memory inputs = new string[](NUM_ARGS);
         inputs[0] = "npx";
         inputs[1] = "tsx";
-        inputs[2] = "js-scripts/generateVotingProof .ts";
+        inputs[2] = "js-scripts/generateVotingProof.ts";
         inputs[3] = vm.toString(votingValue);
         inputs[4] = vm.toString(generator);
         inputs[5] = vm.toString(encryptedVotingValue);
@@ -128,7 +128,7 @@ contract VoteTest is Test {
         uint256 shareProduct = 1;
 
         for (uint256 i = 0; i < VOTERS; i++) {
-            address voter = vote.s_voters(i);
+        (address voter, ) = vote.s_voters(i);  // Destructure the tuple
             uint256 value = uint256(vote.s_encrypted_random_values(voter));
 
             encryptedProduct = modAr.modMul(encryptedProduct, value);

@@ -16,6 +16,7 @@ forge script script/DeployOVFactory.s.sol:DeployOVFactory \
   --private-key $PRIVATE_KEY \
   --broadcast \
   --verify \
+  --etherscan-api-key $ETHERSCAN_API_KEY \
   -vvvv
 ```
 
@@ -25,6 +26,7 @@ forge script script/DeployOVFactory.s.sol:DeployOVFactory \
   --private-key $PRIVATE_KEY \
   --broadcast \
   --verify \
+  --etherscan-api-key $ETHERSCAN_API_KEY \
   --optimize \
   --optimizer-runs 200 \
   -vvvv

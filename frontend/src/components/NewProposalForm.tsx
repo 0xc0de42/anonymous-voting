@@ -13,7 +13,7 @@ interface NewProposalFormProps {
   onCreate: () => void;     // parent hits factory.createVote(...)
   onCancel: () => void;
   isCreating?: boolean;
-  nextId?: number; // totalVotes + 1
+  //nextId?: number; // totalVotes + 1
 }
 
 export default function NewProposalForm({
@@ -23,7 +23,7 @@ export default function NewProposalForm({
   onCreate,
   onCancel,
   isCreating = false,
-  nextId,
+  //nextId,
 }: NewProposalFormProps) {
   if (!visible) return null;
 
@@ -57,11 +57,13 @@ export default function NewProposalForm({
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full mx-4 border border-gray-200">
         <h2 className="text-2xl font-extrabold mb-2 text-gray-800">Create New Vote</h2>
-        {typeof nextId === 'number' && (
+        {/*
+        typeof nextId === 'number' && (
           <div className="text-sm text-gray-500 mb-4">
             Auto-assigned ID: <span className="font-semibold">#{nextId}</span>
           </div>
-        )}
+        )
+        */}
 
         <div className="space-y-4">
           <input

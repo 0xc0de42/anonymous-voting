@@ -38,7 +38,7 @@ export default function VotersDisplay({
       {/* Inscribed progress */}
       <div>
         <div className="flex justify-between text-xs text-gray-500 mb-1">
-          <span>Inscribed</span>
+          <span>Registered</span>
           <span>{pctIns}%</span>
         </div>
         <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
