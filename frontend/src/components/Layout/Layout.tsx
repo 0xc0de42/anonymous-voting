@@ -9,7 +9,7 @@ interface LayoutProps {
   description?: string;
 }
 
-export function Layout({ children, title = 'PolkaVote', description = 'Private voting with Noir and RainbowKit' }: LayoutProps) {
+export function Layout({ children, title = 'PolkaVote', description = 'Private voting project for Web3Summit from Cracked Devz' }: LayoutProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <Head>
@@ -27,8 +27,8 @@ export function Layout({ children, title = 'PolkaVote', description = 'Private v
         </main>
       </div>
 
-      <footer className="mt-2 p-2 text-center text-gray-400 text-sm border-t bg-white">
-        © {new Date().getFullYear()} PolkaVote — Private voting powered by Noir &amp; RainbowKit
+      <footer className="mt-2 p-2 text-center text-black bg-white">
+        © {new Date().getFullYear()} PolkaVote — Private voting project for Web3Summit from Cracked Devz
       </footer>
     </div>
   );

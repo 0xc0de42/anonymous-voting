@@ -7,6 +7,8 @@ export type VoteButtonsProps = {
   hasVoted?: boolean;
   votingOpen?: boolean;
   busy?: boolean;
+  isComplete?: boolean;
+  finalResult?: boolean;
 
   onInscribe: () => void;
   onYay: () => void;
@@ -20,13 +22,15 @@ export default function VoteButtons({
   hasVoted,
   votingOpen = true,
   busy = false,
+  isComplete = false,
+  finalResult,
   onInscribe,
   onYay,
   onNay,
 }: VoteButtonsProps) {
   // rules
   const showInscribe = canInscribe && !hasInscribed;
-  const showVoting = canVote && hasInscribed && !hasVoted;
+  const showVoting = canVote && hasInscribed && !hasVoted && !isComplete;
 
   const disabledGeneral = busy || !votingOpen;
 
@@ -63,7 +67,15 @@ export default function VoteButtons({
 
       {!showInscribe && !showVoting && (
         <div className="text-sm text-gray-500 text-center">
-          {hasVoted
+          {isComplete && finalResult !== undefined
+            ? (
+                <div className="text-lg font-bold text-black">
+                  Final Result: <span className={finalResult ? 'text-green-600' : 'text-red-600'}>
+                    {finalResult ? '✅ YES' : '❌ NO'}
+                  </span>
+                </div>
+              )
+            : hasVoted
             ? 'You already voted.'
             : hasInscribed
             ? votingOpen

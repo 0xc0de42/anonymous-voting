@@ -9,15 +9,16 @@ import VoteFactoryJson from '../../open_vote_contracts/out/VoteFactory.sol/VoteF
 import VoteJson from '../../open_vote_contracts/out/Vote.sol/Vote.json';
 
 export interface UiVote {
-  id: bigint;
-  voteAddress: `0x${string}`;
+  id: string;
+  address: `0x${string}`;
   name: string;
   description: string;
-  numberOfVoters: number;
+  numberOfVoters: bigint;
   registeredVoters: {
     voters: `0x${string}`[];
     hasVoted: boolean[];
   };
+  finalResult?: boolean | null; // Add this field
 }
 
 export type CreateVoteParams = {
@@ -73,20 +74,20 @@ export async function getVoteMetadata(opts: {
 
 /** Fetch the N most recent votes (newest -> oldest). */
 export async function getRecentVotes(opts: {
-  factoryAddress: Address;
+  factoryAddress: `0x${string}`;
   limit?: number;
 }): Promise<UiVote[]> {
-  const { factoryAddress, limit = 10 } = opts;
+  const { factoryAddress, limit = 10 } = opts; // Now this works correctly
   const publicClient = PublicClientSingleton.get();
 
   try {
     const total = await getTotalVotes({ factoryAddress });
     console.log(`Total votes from contract: ${total}`);
-    
+
     const totalNum = Number(total);
     const count = Math.min(limit, Math.max(totalNum, 0));
     console.log(`Will fetch ${count} votes (total: ${totalNum})`);
-    
+
     if (count <= 0) {
       console.log('No votes to fetch, returning empty array');
       return [];
@@ -134,7 +135,7 @@ export async function getRecentVotes(opts: {
       }
 
       const voteAddress = byId.result as Address;
-      
+
       // Handle metadata result safely
       let name = 'Unknown Vote';
       let description = 'No description available';
@@ -158,11 +159,11 @@ export async function getRecentVotes(opts: {
       const votePromise = getRegisteredVoters({
         voteAddress,
       }).then((registeredVoters) => ({
-        id: BigInt(id),
-        voteAddress,
+        id: id.toString(), // Convert BigInt to string
+        address: voteAddress, // Use 'address' instead of 'voteAddress'
         name,
         description,
-        numberOfVoters,
+        numberOfVoters: BigInt(numberOfVoters), // Convert number to bigint
         registeredVoters,
       }));
 
@@ -172,7 +173,26 @@ export async function getRecentVotes(opts: {
     // Wait for all registered voter data to be fetched
     const votesWithRegisteredVoters = await Promise.all(votePromises);
 
-    return votesWithRegisteredVoters;
+    const votesWithResults = await Promise.all(
+      votesWithRegisteredVoters.map(async (vote) => {
+        const votesCount = vote.registeredVoters.hasVoted.filter(voted => voted).length;
+        const maxVoters = Number(vote.numberOfVoters);
+
+        // Check if voting is complete
+        if (votesCount === maxVoters) {
+          try {
+            const finalResult = await getFinalVoteResult(vote.address);
+            return { ...vote, finalResult };
+          } catch (error) {
+            return { ...vote, finalResult: null };
+          }
+        }
+
+        return { ...vote, finalResult: null };
+      })
+    );
+
+    return votesWithResults;
   } catch (error) {
     console.error('Error in getRecentVotes:', error);
     throw error;
@@ -471,5 +491,22 @@ export async function getRegisteredVoters(opts: {
   } catch (error) {
     console.error(`Failed to get registered voters for ${voteAddress}:`, error);
     return { voters: [], hasVoted: [] };
+  }
+}
+
+export async function getFinalVoteResult(voteAddress: `0x${string}`) {
+    const publicClient = PublicClientSingleton.get();
+
+  try {
+    const result = await publicClient.readContract({
+      address: voteAddress,
+      abi: VoteJson.abi,
+      functionName: 'get_finalVote',
+    });
+    return result as boolean;
+  } catch (error) {
+    // If the vote is not finalized yet, this will throw an error
+    console.log('Vote not finalized yet:', error);
+    return null;
   }
 }

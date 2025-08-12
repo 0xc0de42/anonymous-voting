@@ -1,5 +1,6 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Image from 'next/image';
+import Link from 'next/link';
 
 export function Navbar() {
   return (
@@ -16,6 +17,8 @@ export function Navbar() {
     >
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center' }}>
+        <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+
         <Image
           src="/polkavote-logo.png" // or whatever your logo source is
           alt="PolkaVote Logo"
@@ -23,6 +26,7 @@ export function Navbar() {
           height={32}
           className="h-8 w-8"
         />
+        </Link>
       </div>
       
       {/* Project Name */}

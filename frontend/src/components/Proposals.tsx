@@ -180,34 +180,44 @@ const Proposals: React.FC<ProposalsProps> = ({
             const userInscribed = userIndex >= 0;
             const userHasVoted = userIndex >= 0 ? v.registeredVoters.hasVoted[userIndex] : false;
 
+            // Check if voting is complete
+            const votesCount = v.registeredVoters.hasVoted.filter(voted => voted).length;
+            const maxVoters = Number(v.numberOfVoters);
+            const isComplete = votesCount === maxVoters;
+
             // Compute stats dynamically from the vote data
             const stats: ProposalStats = {
-              maxVoters: Number(v.numberOfVoters),
+              maxVoters: maxVoters,
               inscribed: v.registeredVoters.voters.length,
               voters: v.registeredVoters.voters.map((voter) => voter.toLowerCase()),
               userInscribed: userInscribed,
               hasVoted: userHasVoted,
-              votesCount: v.registeredVoters.hasVoted.filter(voted => voted).length
+              votesCount: votesCount,
+              isComplete: isComplete,
+              finalResult: isComplete ? (v.finalResult ?? undefined) : undefined
             };
-            const busy = !!busyByAddr[v.voteAddress];
+            const busy = !!busyByAddr[v.address];
 
             return (
-              <RecentVoteItem
-                key={v.id.toString()}
-                id={v.id}
-                voteAddress={v.voteAddress}
-                name={v.name}
-                description={v.description}
-                stats={stats}
-                busy={busy}
-                onInscribe={() => onInscribe(v.voteAddress)}
-                onYay={() => onVote(v.voteAddress, true)}
-                onNay={() => onVote(v.voteAddress, false)}
-              />
+              <div key={v.id.toString()}>
+                <RecentVoteItem
+                  id={BigInt(v.id)}
+                  voteAddress={v.address}
+                  name={v.name}
+                  description={v.description}
+                  stats={stats}
+                  busy={busy}
+                  onInscribe={() => onInscribe(v.address)}
+                  onYay={() => onVote(v.address, true)}
+                  onNay={() => onVote(v.address, false)}
+                />
+              </div>
             );
           })
         )}
       </div>
+
+      {/* Remove the old global voting progress section */}
     </div>
   );
 };

@@ -43,10 +43,10 @@ export function Sidebar() {
     <aside className="w-64 bg-white border-r border-gray-200 min-h-screen">
       <div className="p-4">
         <div className="mb-6">
-          <Link 
-            href="/create"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center"
-          >
+            <Link
+              href="/create"
+              className="flex items-center justify-center bg-pink-600 hover:bg-pink-700 !text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
             📝 Create
           </Link>
         </div>

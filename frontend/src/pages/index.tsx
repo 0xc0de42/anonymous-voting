@@ -291,43 +291,6 @@ const Home: NextPage = () => {
           <p className="text-xl text-gray-600 mb-6">
             Private governance voting powered by zero-knowledge proofs and Noir
           </p>
-
-          <div className="flex gap-4">
-            <Link
-              href="/create"
-              className="bg-pink-600 hover:bg-pink-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-            >
-              🏛️ Create Proposal
-            </Link>
-            <Link
-              href="/overview"
-              className="border border-pink-600 text-pink-600 hover:bg-pink-50 px-6 py-3 rounded-lg font-medium transition-colors"
-            >
-              📊 View Overview
-            </Link>
-            <Link
-              href="/votingInterface"
-              className="border border-purple-600 text-purple-600 hover:bg-purple-50 px-6 py-3 rounded-lg font-medium transition-colors"
-            >
-              🗳️ Voting Interface
-            </Link>
-            
-            {/* Refresh Button */}
-            <button
-              onClick={refreshProposals}
-              disabled={isRefreshing}
-              className="border border-gray-600 text-gray-600 hover:bg-gray-50 px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isRefreshing ? (
-                <>
-                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
-                  Refreshing...
-                </>
-              ) : (
-                <>🔄 Refresh</>
-              )}
-            </button>
-          </div>
         </div>
 
         {/* Show content only when not loading */}
