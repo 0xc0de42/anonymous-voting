@@ -1,0 +1,11 @@
+# Contract development files - not needed for frontend deployment
+open_vote_contracts/js-scripts/
+open_vote_contracts/broadcast/
+open_vote_contracts/cache/
+open_vote_contracts/lib/
+open_vote_contracts/src/
+forge.toml
+foundry.toml
+
+# Keep only the compiled artifacts that your frontend actually imports
+!open_vote_contracts/out/
