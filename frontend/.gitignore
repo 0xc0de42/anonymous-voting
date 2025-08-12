@@ -11,6 +11,7 @@
 # next.js
 /.next/
 /out/
+!/frontend/open_vote_contracts/out/Vote.sol/Vote.json
 
 # production
 /build
