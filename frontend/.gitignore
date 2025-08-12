@@ -39,3 +39,10 @@ yarn-error.log*
 
 # yarn
 .yarn
+
+# Exclude contract development files from Next.js compilation
+open_vote_contracts/js-scripts/
+open_vote_contracts/src/
+open_vote_contracts/lib/
+open_vote_contracts/cache/
+open_vote_contracts/broadcast/
