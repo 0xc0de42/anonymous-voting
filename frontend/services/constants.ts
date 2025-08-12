@@ -1,0 +1,1 @@
+export const PANAGRAM_CONTRACT_ADDRESS = "0xYourContractAddressHere";

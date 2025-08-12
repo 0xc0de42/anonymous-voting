@@ -27,7 +27,11 @@ export async function generateNoirProof({
     const signatureBytes = Array.from(sigBytesFull.slice(0, 64));
     const messageHex = Buffer.from(message, "hex");
     const hashed = keccak256(messageHex);
-    const pubkey = await recoverPublicKey({ hash: hashed, signature });
+    const normalizedSignature = signature.startsWith('0x') ? signature : `0x${signature}`;
+    const pubkey = await recoverPublicKey({
+        hash: hashed,
+        signature: normalizedSignature as `0x${string}`
+    });
     const pubKeyHex = Array.from(Buffer.from(pubkey.replace(/^0x/, ""), "hex"));
     const uncompressed = pubKeyHex.slice(1);
     const x = uncompressed.slice(0, 32);

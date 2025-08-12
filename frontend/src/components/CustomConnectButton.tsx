@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useChainId, useSwitchChain } from 'wagmi';
 import { sepolia } from 'wagmi/chains';
@@ -78,9 +79,11 @@ export function CustomConnectButton() {
                         }}
                       >
                         {chain.iconUrl && (
-                          <img
+                          <Image
                             alt={chain.name ?? 'Chain icon'}
                             src={chain.iconUrl}
+                            width={12}
+                            height={12}
                             style={{ width: 12, height: 12 }}
                           />
                         )}

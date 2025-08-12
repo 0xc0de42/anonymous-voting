@@ -251,6 +251,13 @@ export function VotingInterface({ contractAddress }: VotingInterfaceProps) {
 
   const git = useMemo(() => recentVotesState, [recentVotesState]);
 
+            const recentList = useMemo(() => {
+            return git.slice(0, 10).map(v => ({
+              ...v,
+              registeredVoters: v.registeredVoters || { voters: [], hasVoted: [] },
+            }));
+          }, [git]);
+          
   return (
     <div className="container mx-auto p-4 md:p-8 relative">
       {/* Loader Overlay */}
@@ -287,6 +294,7 @@ export function VotingInterface({ contractAddress }: VotingInterfaceProps) {
           />
 
           {/* Recent Votes (up to 10 newest) */}
+
           <div className="grid gap-6">
             {recentList.length === 0 ? (
               <div className="text-center py-12 text-gray-400 text-lg font-semibold">

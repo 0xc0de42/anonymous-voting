@@ -162,7 +162,7 @@ const Home: NextPage = () => {
     if (contractAddress) {
       fetchRecentVotes();
     }
-  }, [contractAddress, appendLog]);
+  }, [appendLog]); // Remove contractAddress from dependencies
 
   const onInscribe = async (voteAddress: `0x${string}`) => {
     try {

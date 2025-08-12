@@ -121,7 +121,7 @@ const Overview: NextPage = () => {
                       <span className="text-sm font-medium">seadanda</span>
                     </div>
                   </td>
-                  <td className="py-4 text-sm text-gray-600">11th Aug '25</td>
+                  <td className="py-4 text-sm text-gray-600">11th Aug 25</td>
                   <td className="py-4 text-sm text-gray-600">Whitelisted Caller</td>
                   <td className="py-4">
                     <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-medium">
@@ -145,7 +145,7 @@ const Overview: NextPage = () => {
                       <span className="text-sm font-medium">developer123</span>
                     </div>
                   </td>
-                  <td className="py-4 text-sm text-gray-600">10th Aug '25</td>
+                  <td className="py-4 text-sm text-gray-600">10th Aug 25</td>
                   <td className="py-4 text-sm text-gray-600">Root</td>
                   <td className="py-4">
                     <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">

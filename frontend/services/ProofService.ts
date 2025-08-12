@@ -9,7 +9,7 @@ import { Noir } from "@noir-lang/noir_js";
 import { CompiledCircuit } from '@noir-lang/types'
 import { InputMap, InputValue } from '@noir-lang/noirc_abi';;
 
-import { ANSWER_HASH } from "./constants";
+//import { ANSWER_HASH } from "./constants";
 
 interface InscriptionInputs{
     public_generator: string,
@@ -69,4 +69,4 @@ async function generateProof(inputs: InputMap, circuit: CompiledCircuit): Promis
   }
 };
 
-export { generateInscriptionProof, generateVotingProof}
+export { generateInscriptionProof, generateVotingProof, generateProof}

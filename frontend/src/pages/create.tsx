@@ -299,7 +299,7 @@ const Create: NextPage = () => {
               <ul className="text-sm text-blue-700 space-y-1">
                 <li>• Fill in your proposal details</li>
                 <li>• Set the maximum number of voters</li>
-                <li>• Click "Create Proposal" to deploy</li>
+                <li>• Click &quot;Create Proposal&quot; to deploy</li>
                 <li>• Your proposal will be private and secure</li>
               </ul>
             </div>

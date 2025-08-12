@@ -151,7 +151,7 @@ const Proposals: React.FC<ProposalsProps> = ({
         <div className="text-sm text-gray-600">
           Showing {filteredAndSortedList.length} of {recentList.length} proposals
           {searchTerm && (
-            <span> matching "{searchTerm}"</span>
+            <span> matching {searchTerm}</span>
           )}
         </div>
       </div>

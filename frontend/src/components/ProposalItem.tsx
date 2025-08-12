@@ -1,5 +1,5 @@
 // components/ProposalItem.tsx
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import type { Address } from 'viem';
 import { useWriteContract } from 'wagmi';
 import VoteButtons from './VoteButtons';
@@ -25,11 +25,15 @@ export default function ProposalItem({
   onEnroll,
   inscription,
 }: ItemProps & { inscription?: InscriptionInputs }) {
-  // If the parent is still loading/hydrating, bail out safely
-  if (!proposal) return null;
-
+  // Move ALL hooks to the top level - before any early returns or conditions
   const voteAddr = proposal?.voteAddress as Address | undefined;
   const { writeContractAsync } = useWriteContract();
+  const [loading, setLoading] = useState(false);
+  const [voterStatus, setVoterStatus] = useState<{ isRegistered: boolean; hasVoted: boolean }>({
+    isRegistered: false,
+    hasVoted: false
+  });
+  const [busy, setBusy] = useState(false);
 
   // ── Stats ─────────────────────────────────────────────────────────────
   const [stats, setStats] = useState<VoteStats | null>(null);
@@ -58,12 +62,10 @@ export default function ProposalItem({
   }, [voteAddr, refreshStats]);
 
   // ── Has voted? (best-effort) ─────────────────────────────────────────
-  const [hasVoted, setHasVoted] = useState(false);
-
   useEffect(() => {
     (async () => {
       if (!currentAddress || !voteAddr) {
-        setHasVoted(false);
+        setVoterStatus({ isRegistered: false, hasVoted: false });
         return;
       }
       const pc = PublicClientSingleton.get();
@@ -75,13 +77,16 @@ export default function ProposalItem({
             functionName: fn as any,
             args: [currentAddress as Address],
           });
-          setHasVoted(Boolean(r));
+          setVoterStatus(prev => ({ ...prev, hasVoted: Boolean(r) }));
           return;
         } catch {/* try next */}
       }
-      setHasVoted(false);
+      setVoterStatus(prev => ({ ...prev, hasVoted: false }));
     })();
   }, [currentAddress, voteAddr]);
+
+  // NOW you can have early returns or conditional logic after all hooks
+  if (!proposal) return null;
 
   // ── Numbers / membership ─────────────────────────────────────────────
   const maxVoters = Number(stats?.maxVoters ?? proposal.maxVoters ?? 0);
@@ -99,8 +104,7 @@ export default function ProposalItem({
   const votingOpen = full ? userInscribed : true;
 
   // ── Inscribe action ─────────────────────────────────────────────────
-  const [busy, setBusy] = useState(false);
-  async function handleInscribe() {
+  const handleInscribe = async () => {
     // parent-owned flow
     if (onEnroll) {
       onEnroll(proposal.id);
@@ -132,24 +136,25 @@ export default function ProposalItem({
     }
   }
 
-        console.log('hasVoted',hasVoted)
+  // Debug info (remove in production)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Debug:', { hasVoted: voterStatus.hasVoted });
+  }
+
+  // NOW you can have early returns or conditional logic
+  if (loading || loadingStats) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="border rounded-2xl p-6 bg-white shadow">
       {/* … your header / description / stats … */}
 
-    {/* Debug info (remove in production) */}
-    {process.env.NODE_ENV === 'development' && (
-      <div className="text-xs text-gray-500 mb-2">
-        Debug: hasVoted = {String(hasVoted)}
-      </div>
-    )}
-    
       <VoteButtons
         canInscribe={canInscribe}
         canVote={canVote}
         hasInscribed={userInscribed}
-        hasVoted={hasVoted}
+        hasVoted={voterStatus.hasVoted}
         votingOpen={votingOpen}
         busy={busy || loadingStats}
         onInscribe={handleInscribe}
