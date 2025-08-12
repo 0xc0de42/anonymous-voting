@@ -13,6 +13,7 @@ import type { InscriptionInputs } from '../../types/proposal';
 import Crypto, {
   getRandomValue,
   modExp,
+  modMul,
   generateEmptyProof,
   generateInscriptionProof,
   generateVotingProof,
@@ -22,8 +23,10 @@ import Crypto, {
 
 import {
   UiVote,
+  getRegisteredVoters,
   getRecentVotes,
   getTotalVotes,
+  getDecryptionShareByIndex,
   createVote,
   waitForReceipt,
   inscribeOnVote,
@@ -204,41 +207,49 @@ export function VotingInterface({ contractAddress }: VotingInterfaceProps) {
   };
 
   const onVote = async (voteAddress: `0x${string}`, value: boolean) => {
-    try {
-      setBusyByAddr(m => ({ ...m, [voteAddress]: true }));
+  try {
+    setBusyByAddr(m => ({ ...m, [voteAddress]: true }));
 
-      const voteDegree = value ? 1n : 0n;              // yay=1, nay=0
-      const voteHex = bigIntToBytes32(voteDegree);     // 0x… (bytes32)
-      const enc = modExp(Crypto.generator, voteDegree);
-      const encHex = bigIntToBytes32(enc);             // 0x… (bytes32)
-
-      // Prove (logs go to SidePanel via appendLog)
-      const { proof } = await generateVotingProof(voteHex, encHex, appendLog);
-      const proofHex = u8ToHex(proof);                 // bytes -> 0x…
-
-      appendLog(`Vote: sending tx for ${voteAddress}…`);
-      const tx = await castVoteOnVote({
-        writeContractAsync,
-        voteAddress,
-        voteAbi: (VoteJson as any).abi,
-        functionName: 'vote',                          // vote(bytes,bytes32)
-        args: [proofHex, encHex],
-      });
-
-      appendLog(`✅ vote tx sent: ${tx}`);
-      const receipt = await waitForReceipt(tx);
-      appendLog(`vote confirmed in block ${receipt.blockNumber?.toString?.() ?? ''}`);
-
-      // Refresh voter status after successful vote
-    } catch (e) {
-      console.error('vote failed:', e);
-      appendLog(`❌ vote failed: ${String(e)}`);
-    } finally {
-      setBusyByAddr(m => ({ ...m, [voteAddress]: false }));
+    if (!address) {
+      appendLog('❌ Connect your wallet before voting.');
+      return;
     }
-  };
+    const account = address as `0x${string}`;
 
-  const recentList = useMemo(() => recentVotesState, [recentVotesState]);
+    const voteDegree = value ? 1n : 0n; // 1 or 0
+    const voteHex = bigIntToBytes32(voteDegree);
+
+    const gPowVote = modExp(Crypto.generator, voteDegree); // g^vote
+    const gPowVoteHex = bigIntToBytes32(gPowVote);
+
+    const { proof } = await generateVotingProof(voteHex, gPowVoteHex, appendLog);
+    const proofHex = u8ToHex(proof);
+
+    const { voters } = await getRegisteredVoters({ voteAddress });
+    const idx = voters.findIndex(v => v.toLowerCase() === account.toLowerCase());
+    if (idx < 0) throw new Error('Wallet is not an inscribed voter on this Vote');
+
+    const share = await getDecryptionShareByIndex({ voteAddress, index: BigInt(idx) });
+    const encryptedVoteProduct = modMul(gPowVote, share);
+    const encryptedVoteHex = bigIntToBytes32(encryptedVoteProduct);
+
+    appendLog(`Vote: sending tx for ${voteAddress}…`);
+    const tx = await castVoteOnVote({
+      writeContractAsync,
+      voteAddress,
+      voteAbi: (VoteJson as any).abi,
+      functionName: 'vote',
+      args: [proofHex, encryptedVoteHex],
+    });
+    appendLog(`Vote: tx hash ${tx}`);
+  } catch (e) {
+    appendLog(`❌ vote failed: ${String(e)}`);
+  } finally {
+    setBusyByAddr(m => ({ ...m, [voteAddress]: false }));
+  }
+};
+
+  const git = useMemo(() => recentVotesState, [recentVotesState]);
 
   return (
     <div className="container mx-auto p-4 md:p-8 relative">

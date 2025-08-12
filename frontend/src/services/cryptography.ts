@@ -81,6 +81,13 @@ export class CryptoMath {
     return result;
   }
 
+  modMul(
+    a: bigint | number | string,
+    b: bigint | number | string,
+  ): bigint {
+    return BigInt(a) * BigInt(b) % this.FIELD;
+  }
+
   toBytes32(value: bigint | number | string): Hex {
     return toBytes32(value);
   }
@@ -157,6 +164,13 @@ export function modExp(
   exponent: bigint | number | string,
 ): bigint {
   return CryptoMath.instance.modExp(base, exponent);
+}
+
+export function modMul(
+  a: bigint | number | string,
+  b: bigint | number | string,
+): bigint {
+  return CryptoMath.instance.modMul(a, b);
 }
 
 export function generateEmptyProof(): Hex {

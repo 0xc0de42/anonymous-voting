@@ -234,6 +234,20 @@ export async function inscribeOnVote(opts: {
   return hash as `0x${string}`;
 }
 
+export async function getDecryptionShareByIndex(opts: {
+  voteAddress: Address;
+  index: bigint;
+}): Promise<bigint> {
+  const publicClient = PublicClientSingleton.get();
+  const share = await publicClient.readContract({
+    address: opts.voteAddress,
+    abi: (VoteJson as any).abi,
+    functionName: 's_decryption_shares', // or 'decryptionShares'
+    args: [opts.index],
+  });
+  return share as bigint;
+}
+
 export async function castVoteOnVote(opts: {
   writeContractAsync: WriteAsync;
   voteAddress: Address;
