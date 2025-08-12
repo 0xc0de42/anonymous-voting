@@ -82,12 +82,6 @@ const Proposals: React.FC<ProposalsProps> = ({
     <div className="bg-white rounded-lg shadow p-6 mb-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-gray-800">Proposals</h2>
-        <Link 
-          href="/create"
-          className="text-pink-600 hover:underline text-sm"
-        >
-          Create New →
-        </Link>
       </div>
 
       {/* Filter and Search Controls */}

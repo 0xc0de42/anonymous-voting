@@ -2,6 +2,7 @@ import type { NextPage } from 'next';
 import React, { useState, useCallback } from 'react';
 import { useAccount, useWriteContract } from 'wagmi';
 import { sepolia } from 'wagmi/chains';
+import { useRouter } from 'next/router';
 import { Layout } from '../components/Layout/Layout';
 import ZkProofSpinner from '../components/ZkProofSpinner';
 
@@ -150,6 +151,7 @@ function NewProposalForm({
 const Create: NextPage = () => {
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
+  const router = useRouter();
 
   // Form state
   const [newProposal, setNewProposal] = useState<NewProposalState>({
@@ -212,6 +214,11 @@ const Create: NextPage = () => {
       // Reset form on success
       setNewProposal({ name: '', description: '', numberOfVoters: '' });
       appendLog('🎊 Proposal created successfully!');
+
+      // Add a small delay to show the success message before redirecting
+      setTimeout(() => {
+        router.push('/');
+      }, 2000);
 
     } catch (err) {
       console.error('Error sending createVote tx:', err);
