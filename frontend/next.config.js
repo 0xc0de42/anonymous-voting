@@ -1,18 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  webpack: (config) => {
-    config.externals.push('pino-pretty', 'lokijs', 'encoding');
-
-    config.externals.push({
-      '../open_vote_contracts/js-scripts/generateInscriptionProof': 'commonjs ../open_vote_contracts/js-scripts/generateInscriptionProof',
-    });
+  webpack: (config, { isServer }) => {
+    // Ignore contract script files during build
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: [
+        '**/node_modules/**',
+        '**/open_vote_contracts/js-scripts/**',
+        '**/open_vote_contracts/broadcast/**',
+      ]
+    };
+    
     return config;
   },
-    excludeFiles: (src) => {
-    if (src.includes('open_vote_contracts/js-scripts/')) return true;
-    return false;
-  }
 };
 
 module.exports = nextConfig;
