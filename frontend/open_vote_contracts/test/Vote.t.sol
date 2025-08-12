@@ -82,6 +82,47 @@ contract VoteTest is Test {
         assertEq(vote.s_enscribedVoters(), 1);
     }
 
+    function testVoterFullFlow() public {
+        Vote vote = new Vote(inscriptionVerifier, votingVerifier, 1, generator);
+
+        address users = address(uint160(1));
+        vm.startPrank(user);
+
+        uint256 randomDegree = 1;
+        uint256 encrypted = modAr.modExp(uint256(generator), randomDegree);
+        bytes32 encryptedRandomValue = bytes32(encrypted);
+        bytes32 randomValue = bytes32(randomDegree);
+
+        // Generate proof
+        bytes memory proof = _getInscriptionProof(randomValue, encryptedRandomValue);
+
+        // Enscribe the voter
+        vote.enscribeVoter(proof, encryptedRandomValue);
+
+        vm.stopPrank();
+
+        // Assert total number of enscribed voters
+        assertEq(vote.s_enscribedVoters(), 1);
+        assertEq(vote.s_maximalNumberOfVoters(), 1);
+
+        // uint256 nullified = evaluateProducts(vote);
+        // assertEq(nullified, uint256(1));
+
+        uint256[] memory votes = generateBinaryArray(1);
+        uint256 votesSum = votes[0];
+
+        vm.startPrank(user);
+        uint256 encryptedVote =
+        modAr.modMul(modAr.modExp(uint256(generator), votes[0]), vote.s_decryption_shares(0));
+                    
+        bytes memory proofVote = _getVotingProof(bytes32(votes[0]), bytes32(modAr.modExp(uint256(generator), votes[0])));
+
+        vote.vote(proofVote, bytes32(encryptedVote));
+        vm.stopPrank();
+
+        assertEq(vote.s_yesVotes(), votesSum);
+    }
+    
     function testElevenVotersFullFlow() public {
         Vote vote = new Vote(inscriptionVerifier, votingVerifier, VOTERS, generator);
 

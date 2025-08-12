@@ -153,16 +153,6 @@ contract Vote is Ownable {
         }
     }
 
-    function getRegisteredVoters() external view returns (address[] memory voters, bool[] memory hasVoted) {
-        voters = new address[](s_voters.length);
-        hasVoted = new bool[](s_voters.length);
-        
-        for (uint256 i = 0; i < s_voters.length; i++) {
-            voters[i] = s_voters[i].voterAddress;
-            hasVoted[i] = s_voters[i].hasVoted;
-        }
-    }
-
     function verifyVoting(bytes calldata proof, bytes32 encrypted_vote) internal returns (bool) {
         if (s_votedVoters >= s_enscribedVoters) {
             revert Voting__IsClosed();
@@ -199,6 +189,16 @@ contract Vote is Ownable {
             acc = s_modAr.modMul(acc, uint256(s_generator));
         }
         revert Voting__FailedToDecryptFinalVote();
+    }
+
+    function getRegisteredVoters() external view returns (address[] memory voters, bool[] memory hasVoted) {
+        voters = new address[](s_voters.length);
+        hasVoted = new bool[](s_voters.length);
+        
+        for (uint256 i = 0; i < s_voters.length; i++) {
+            voters[i] = s_voters[i].voterAddress;
+            hasVoted[i] = s_voters[i].hasVoted;
+        }
     }
 
     function get_finalVote() external view returns (bool) {
