@@ -5,6 +5,7 @@ import { sepolia } from 'wagmi/chains';
 import { useRouter } from 'next/router';
 import { Layout } from '../components/Layout/Layout';
 import ZkProofSpinner from '../components/ZkProofSpinner';
+import { getArkivWallet } from '../services/arkiv';
 
 // Import the same contract setup from your index page
 import voteFactoryArtifact from '../../open_vote_contracts/out/VoteFactory.sol/VoteFactory.json';
@@ -151,6 +152,8 @@ function NewProposalForm({
 const Create: NextPage = () => {
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
+  const arkivKey = "0x97c1685ac3d48a9a8fa30c7b864b852970795c78d9af0ea4074c1a484e51521f" as `0x${string}`;
+  const arkivWallet = getArkivWallet(arkivKey)
   const router = useRouter();
 
   // Form state
@@ -193,6 +196,7 @@ const Create: NextPage = () => {
 
       const hash = await createVote({
         writeContractAsync,
+        arkivWallet,
         factoryAddress: contractAddress as `0x${string}`,
         data: { name, description, numberOfVoters: count },
         chainId: sepolia.id,

@@ -12,7 +12,7 @@ class PublicClientSingleton {
     if (!this._client) {
       this._client = createPublicClient({
         chain: sepolia,
-        transport: http('https://ethereum-sepolia-rpc.publicnode.com'), // Use a more reliable RPC endpoint
+        transport: http('https://1rpc.io/sepolia'), // Use a more reliable RPC endpoint
       });
     }
     return this._client;
