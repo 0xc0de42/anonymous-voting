@@ -1,4 +1,3 @@
-// frontend/src/services/vote.ts
 import type { Address } from 'viem';
 import { sepolia } from 'wagmi/chains';
 import type { Config } from 'wagmi';
@@ -7,6 +6,11 @@ import type { WriteContractMutateAsync } from 'wagmi/query';
 import PublicClientSingleton from './client';
 import VoteFactoryJson from '../../open_vote_contracts/out/VoteFactory.sol/VoteFactory.json';
 import VoteJson from '../../open_vote_contracts/out/Vote.sol/Vote.json';
+import { Proposal } from '../models/Proposal';
+import { getArkivRpc, getProposalById } from './arkiv';
+import type { WalletArkivClient, PublicArkivClient } from "@arkiv-network/sdk";
+import { Wallet } from 'ethers';
+
 
 export interface UiVote {
   id: string;
@@ -18,7 +22,7 @@ export interface UiVote {
     voters: `0x${string}`[];
     hasVoted: boolean[];
   };
-  finalResult?: boolean | null; // Add this field
+  finalResult?: boolean | null;
 }
 
 export type CreateVoteParams = {
@@ -28,7 +32,6 @@ export type CreateVoteParams = {
 };
 
 
-// Use Wagmi’s exact type for writeContractAsync so it's assignable.
 export type WriteAsync = WriteContractMutateAsync<Config, unknown>;
 
 export async function getTotalVotes(opts: {
@@ -63,12 +66,27 @@ export async function getVoteMetadata(opts: {
   id: bigint;
 }): Promise<{ name: string; description: string; numberOfVoters: number }> {
   const publicClient = PublicClientSingleton.get();
-  const [name, description, numberOfVoters] = (await publicClient.readContract({
-    address: opts.factoryAddress,
-    abi: (VoteFactoryJson as any).abi,
-    functionName: 'getMetadata',
-    args: [opts.id],
-  })) as [string, string, number];
+
+  // 1) Read on-chain metadata from the factory
+  const [name, onchainDescription, numberOfVoters] =
+    (await publicClient.readContract({
+      address: opts.factoryAddress,
+      abi: (VoteFactoryJson as any).abi,
+      functionName: 'getMetadata',
+      args: [opts.id],
+    })) as [string, string, number];
+
+  // 2) Try to fetch richer description from Arkiv (if exists)
+  const arkivRpc = getArkivRpc();
+
+  // convert bigint id -> number for Arkiv lookup
+  const proposalEntity = await getProposalById(arkivRpc, Number(opts.id));
+  console.log(`proposalEntity ${proposalEntity}`);
+  // Prefer Arkiv description if found, otherwise fall back to on-chain one
+  const description = proposalEntity?.description || "";
+  console.log(`description ${description}`);
+  // [TODO] Reconstruct ProposalHeader if you later add more fields
+
   return { name, description, numberOfVoters };
 }
 
@@ -121,14 +139,12 @@ export async function getRecentVotes(opts: {
     const stitched: UiVote[] = [];
     let idx = 0;
 
-    // First, collect all the basic vote data
     const votePromises: Promise<UiVote>[] = [];
 
     for (let id = startId; id >= endId; id--) {
       const byId = results[idx++] as any;
       const metadata = results[idx++] as any;
 
-      // Check if the multicall results are valid
       if (!byId?.result) {
         console.warn(`Failed to get vote address for ID ${id}`);
         continue;
@@ -136,15 +152,25 @@ export async function getRecentVotes(opts: {
 
       const voteAddress = byId.result as Address;
 
-      // Handle metadata result safely
       let name = 'Unknown Vote';
       let description = 'No description available';
       let numberOfVoters = 0;
 
-      if (metadata?.result && Array.isArray(metadata.result)) {
-        [name, description, numberOfVoters] = metadata.result as [string, string, number];
-      } else {
-        console.warn(`Failed to get metadata for vote ID ${id}, using fallback values`);
+      // if (metadata?.result && Array.isArray(metadata.result)) {
+      //   [name, description, numberOfVoters] = metadata.result as [string, string, number];
+      // } else {
+      //   console.warn(`Failed to get metadata for vote ID ${id}, using fallback values`);
+      //   // Optionally, try to fetch metadata individually as fallback
+      //   try {
+      //     const fallbackMetadata = await getVoteMetadata({ factoryAddress, id: BigInt(id) });
+      //     name = fallbackMetadata.name;
+      //     description = fallbackMetadata.description;
+      //   } catch (error) {
+      //     console.error(`Fallback metadata fetch failed for ID ${id}:`, error);
+      //   }
+      // }
+
+      console.warn(`Failed to get metadata for vote ID ${id}, using fallback values`);
         // Optionally, try to fetch metadata individually as fallback
         try {
           const fallbackMetadata = await getVoteMetadata({ factoryAddress, id: BigInt(id) });
@@ -153,7 +179,6 @@ export async function getRecentVotes(opts: {
         } catch (error) {
           console.error(`Fallback metadata fetch failed for ID ${id}:`, error);
         }
-      }
 
       // Create promise to fetch registered voters for each vote
       const votePromise = getRegisteredVoters({
@@ -200,24 +225,52 @@ export async function getRecentVotes(opts: {
 }
 
 /** Create a vote via VoteFactory.createVote(name, description, numberOfVoters). */
+// export async function createVote(opts: {
+//   writeContractAsync: WriteAsync;
+//   factoryAddress: Address;
+//   data: CreateVoteParams;
+//   chainId?: number;
+// }): Promise<`0x${string}`> {
+//   const { writeContractAsync, factoryAddress, data, chainId = sepolia.id } = opts;
+//   const { name, description, numberOfVoters } = data;
+
+//   const hash = await writeContractAsync({
+//     address: factoryAddress,
+//     abi: (VoteFactoryJson as any).abi,
+//     functionName: 'createVote',
+//     args: [name, description, BigInt(numberOfVoters)],
+//     chainId,
+//   });
+//   return hash as `0x${string}`;
+// }
+
 export async function createVote(opts: {
   writeContractAsync: WriteAsync;
+  arkivWallet: WalletArkivClient;
   factoryAddress: Address;
   data: CreateVoteParams;
   chainId?: number;
 }): Promise<`0x${string}`> {
-  const { writeContractAsync, factoryAddress, data, chainId = sepolia.id } = opts;
+  const { writeContractAsync, arkivWallet, factoryAddress, data, chainId = sepolia.id } = opts;
+  // [TODO] Store description on arkiv. 
+  // Instead of storing the description on the blockchain, store only the key
   const { name, description, numberOfVoters } = data;
+  let timestamp = new Date();
+  let proposal = new Proposal(arkivWallet, name, description, numberOfVoters, timestamp);
+  let id = await getTotalVotes({factoryAddress});
+  await proposal.storeDescription(id);
+  let header = proposal.getHeader();
 
   const hash = await writeContractAsync({
     address: factoryAddress,
     abi: (VoteFactoryJson as any).abi,
     functionName: 'createVote',
-    args: [name, description, BigInt(numberOfVoters)],
+    args: [header.name, header.descriptionKey, BigInt(header.numberOfVoters)],
     chainId,
   });
   return hash as `0x${string}`;
 }
+
 
 /** Wait for tx receipt using the singleton public client. */
 export async function waitForReceipt(hash: `0x${string}`) {
