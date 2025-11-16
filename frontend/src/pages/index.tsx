@@ -33,21 +33,17 @@ import Crypto, {
   u8ToHex
 } from '../services/cryptography';
 
-// 1) Import the compiled artifact (ABI lives here if needed)
-import voteFactoryArtifact from '../../open_vote_contracts/out/VoteFactory.sol/VoteFactory.json';
+// 1) Import the deployed contract configuration
+import { getVoteFactoryAddress, PASSET_HUB_CHAIN_ID } from '../config/contracts';
 
-// 2) Import the Sepolia broadcast log to get the deployed address
-//    (this file is created by: forge script ... --broadcast)
-import broadcast from '../../open_vote_contracts/broadcast/DeployOVFactory.s.sol/11155111/run-latest.json';
+// 2) Import Vote contract artifact
+import voteArtifact from '../../open_vote_contracts/out/Vote.sol/Vote.json';
 
-// Derive the VoteFactory address from the broadcast transactions
-const SEPOLIA_CHAIN_ID = 11155111 as const;
-const contractAddress =
-  (broadcast.transactions.find((tx: any) => tx.contractName === 'VoteFactory')?.contractAddress ??
-    process.env.NEXT_PUBLIC_VOTE_FACTORY_ADDRESS_SEPOLIA) as `0x${string}`;
+// Use the deployed Vote contract address on Passet Hub
+const contractAddress = getVoteFactoryAddress(PASSET_HUB_CHAIN_ID);
 
 // Optional: the ABI if/when you need it elsewhere
-export const voteFactoryAbi = (voteFactoryArtifact as any).abi as readonly unknown[];
+export const voteFactoryAbi = (voteArtifact as any).abi as readonly unknown[];
 
 const Home: NextPage = () => {
   const { address } = useAccount();

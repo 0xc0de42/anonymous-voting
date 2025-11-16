@@ -1,5 +1,5 @@
 import type { Address } from 'viem';
-import { sepolia } from 'wagmi/chains';
+import { passetHubTestnet } from '../wagmi';
 import type { Config } from 'wagmi';
 import type { WriteContractMutateAsync } from 'wagmi/query';
 
@@ -115,26 +115,32 @@ export async function getRecentVotes(opts: {
     const endId = Math.max(totalNum - count, 0);
     console.log(`Fetching votes from ID ${startId} to ${endId}`);
 
-    const contracts: any[] = [];
+    // Fetch data using individual calls (no multicall support on Passet Hub)
+    const results: any[] = [];
     for (let i = startId; i >= endId; i--) {
-      contracts.push(
-        {
+      try {
+        const voteAddress = await publicClient.readContract({
           address: factoryAddress,
           abi: (VoteFactoryJson as any).abi,
           functionName: 'getById',
           args: [BigInt(i)],
-        },
-        {
+        });
+        results.push({ result: voteAddress, status: 'success' });
+
+        const metadata = await publicClient.readContract({
           address: factoryAddress,
           abi: (VoteFactoryJson as any).abi,
           functionName: 'getMetadata',
           args: [BigInt(i)],
-        }
-      );
+        });
+        results.push({ result: metadata, status: 'success' });
+      } catch (error) {
+        console.error(`Failed to fetch vote ${i}:`, error);
+        results.push({ status: 'failure', error });
+        results.push({ status: 'failure', error });
+      }
     }
-
-    const results = await publicClient.multicall({ contracts });
-    console.log('Multicall results:', results);
+    console.log('Vote results:', results);
 
     const stitched: UiVote[] = [];
     let idx = 0;
@@ -156,29 +162,20 @@ export async function getRecentVotes(opts: {
       let description = 'No description available';
       let numberOfVoters = 0;
 
-      // if (metadata?.result && Array.isArray(metadata.result)) {
-      //   [name, description, numberOfVoters] = metadata.result as [string, string, number];
-      // } else {
-      //   console.warn(`Failed to get metadata for vote ID ${id}, using fallback values`);
-      //   // Optionally, try to fetch metadata individually as fallback
-      //   try {
-      //     const fallbackMetadata = await getVoteMetadata({ factoryAddress, id: BigInt(id) });
-      //     name = fallbackMetadata.name;
-      //     description = fallbackMetadata.description;
-      //   } catch (error) {
-      //     console.error(`Fallback metadata fetch failed for ID ${id}:`, error);
-      //   }
-      // }
-
-      console.warn(`Failed to get metadata for vote ID ${id}, using fallback values`);
+      if (metadata?.result && Array.isArray(metadata.result)) {
+        [name, description, numberOfVoters] = metadata.result as [string, string, number];
+      } else {
+        console.warn(`Failed to get metadata for vote ID ${id}, using fallback values`);
         // Optionally, try to fetch metadata individually as fallback
         try {
           const fallbackMetadata = await getVoteMetadata({ factoryAddress, id: BigInt(id) });
           name = fallbackMetadata.name;
           description = fallbackMetadata.description;
+          numberOfVoters = Number(fallbackMetadata.numberOfVoters);
         } catch (error) {
           console.error(`Fallback metadata fetch failed for ID ${id}:`, error);
         }
+      }
 
       // Create promise to fetch registered voters for each vote
       const votePromise = getRegisteredVoters({
@@ -251,7 +248,7 @@ export async function createVote(opts: {
   data: CreateVoteParams;
   chainId?: number;
 }): Promise<`0x${string}`> {
-  const { writeContractAsync, arkivWallet, factoryAddress, data, chainId = sepolia.id } = opts;
+  const { writeContractAsync, arkivWallet, factoryAddress, data, chainId = passetHubTestnet.id } = opts;
   // [TODO] Store description on arkiv. 
   // Instead of storing the description on the blockchain, store only the key
   const { name, description, numberOfVoters } = data;
@@ -294,7 +291,7 @@ export async function inscribeOnVote(opts: {
     voteAbi,
     functionName = 'inscribe',
     args = [],
-    chainId = sepolia.id,
+    chainId = passetHubTestnet.id,
   } = opts;
 
   const hash = await writeContractAsync({
@@ -335,7 +332,7 @@ export async function castVoteOnVote(opts: {
     voteAbi,
     functionName = 'vote',
     args = [],
-    chainId = sepolia.id,
+    chainId = passetHubTestnet.id,
   } = opts;
 
   const hash = await writeContractAsync({
@@ -402,6 +399,7 @@ export async function getVoteMaxVoters(opts: {
     address: voteAddress,
     abi: voteAbi,
     candidates: [
+      { functionName: name ?? 's_maximalNumberOfVoters' },
       { functionName: name ?? 'maxVoters' },
       { functionName: name ?? 'numberOfVoters' },
     ],
@@ -419,6 +417,7 @@ export async function getVoteInscribedCount(opts: {
     address: voteAddress,
     abi: voteAbi,
     candidates: [
+      { functionName: name ?? 's_enscribedVoters' },
       { functionName: name ?? 'inscribedCount' },
       { functionName: name ?? 'enrolledCount' },
     ],
@@ -432,14 +431,40 @@ export async function getVoteVoters(opts: {
 }): Promise<Address[]> {
   const { voteAddress, voteAbi, fnNames } = opts;
   const name = fnNames?.votersFn;
-  return readWithFallback<Address[]>({
-    address: voteAddress,
-    abi: voteAbi,
-    candidates: [
-      { functionName: name ?? 'getVoters' },
-      { functionName: name ?? 'voters' },
-    ],
-  });
+
+  // The Vote contract uses s_voters array which returns individual Voter structs
+  // We need to get the voter addresses from the Voter structs
+  const publicClient = PublicClientSingleton.get();
+
+  try {
+    // First try to get the count of voters
+    const voterCount = await readWithFallback<bigint>({
+      address: opts.voteAddress,
+      abi: opts.voteAbi,
+      candidates: [
+        { functionName: 's_enscribedVoters' },
+        { functionName: 'getVotersCount' },
+      ],
+    });
+
+    // Then fetch each voter from the s_voters array
+    const voters: Address[] = [];
+    for (let i = 0; i < Number(voterCount); i++) {
+      const voter = await publicClient.readContract({
+        address: opts.voteAddress,
+        abi: opts.voteAbi,
+        functionName: 's_voters',
+        args: [BigInt(i)],
+      }) as any;
+      // voter is a struct [voterAddress, hasVoted]
+      voters.push(voter[0] as Address);
+    }
+
+    return voters;
+  } catch (error) {
+    console.error('Failed to get voters:', error);
+    return [];
+  }
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -459,28 +484,17 @@ export async function getVoteStats(opts: {
     { functionName: fnNames?.votersFn ?? 'getVoters' },
   ] as const;
 
+  // Use individual calls instead of multicall (Passet Hub doesn't support multicall3)
   try {
-    const contracts = defaultCalls.map((c) => ({
-      address: voteAddress,
-      abi: voteAbi,
-      functionName: c.functionName as any,
-      args: [] as unknown[],
-    }));
-
-    const [maxVoters, inscribedCount, voters] = (await publicClient.multicall({
-      contracts,
-      allowFailure: false,
-    })) as [bigint, bigint, Address[]];
-
-    return { maxVoters, inscribedCount, voters };
-  } catch {
-    // Plan B: fallbacks per field (covers different function names)
     const [maxVoters, inscribedCount, voters] = await Promise.all([
       getVoteMaxVoters({ voteAddress, voteAbi, fnNames }),
       getVoteInscribedCount({ voteAddress, voteAbi, fnNames }),
       getVoteVoters({ voteAddress, voteAbi, fnNames }),
     ]);
     return { maxVoters, inscribedCount, voters };
+  } catch (error) {
+    console.error('Failed to get vote stats:', error);
+    throw error;
   }
 }
 
@@ -512,7 +526,7 @@ export async function enscribeVoterTx(opts: {
     voteAbi,
     proof,
     encryptedRandomValue,
-    chainId = sepolia.id,
+    chainId = passetHubTestnet.id,
   } = opts;
 
   // NOTE: Vote.sol method is enscribeVoter(bytes, bytes32)
@@ -533,12 +547,30 @@ export async function getRegisteredVoters(opts: {
   const { voteAddress } = opts;
 
   try {
-    const [voters, hasVoted] = (await publicClient.readContract({
+    // Get the count of enscribed voters
+    const voterCount = await publicClient.readContract({
       address: voteAddress,
       abi: (VoteJson as any).abi,
-      functionName: 'getRegisteredVoters',
+      functionName: 's_enscribedVoters',
       args: [],
-    })) as [Address[], boolean[]];
+    }) as bigint;
+
+    const voters: Address[] = [];
+    const hasVoted: boolean[] = [];
+
+    // Fetch each voter from the s_voters array
+    for (let i = 0; i < Number(voterCount); i++) {
+      const voter = await publicClient.readContract({
+        address: voteAddress,
+        abi: (VoteJson as any).abi,
+        functionName: 's_voters',
+        args: [BigInt(i)],
+      }) as any;
+
+      // voter is a struct [voterAddress, hasVoted]
+      voters.push(voter[0] as Address);
+      hasVoted.push(voter[1] as boolean);
+    }
 
     return { voters, hasVoted };
   } catch (error) {

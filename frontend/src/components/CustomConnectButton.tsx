@@ -1,15 +1,15 @@
 import Image from 'next/image';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useChainId, useSwitchChain } from 'wagmi';
-import { sepolia } from 'wagmi/chains';
+import { passetHubTestnet } from '../wagmi';
 
 export function CustomConnectButton() {
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
 
   const handleNetworkSwitch = () => {
-    if (chainId !== sepolia.id) {
-      switchChain({ chainId: sepolia.id });
+    if (chainId !== passetHubTestnet.id) {
+      switchChain({ chainId: passetHubTestnet.id });
     }
   };
 
@@ -55,7 +55,7 @@ export function CustomConnectButton() {
               if (chain.unsupported) {
                 return (
                   <button onClick={handleNetworkSwitch} type="button">
-                    Switch to Sepolia
+                    Switch to Passet Hub
                   </button>
                 );
               }

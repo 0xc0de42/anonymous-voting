@@ -1,5 +1,5 @@
 import { createPublicClient, http, type PublicClient } from 'viem';
-import { sepolia } from 'viem/chains';
+import { passetHubTestnet } from '../wagmi';
 
 /**
  * Simple singleton for a viem PublicClient.
@@ -11,8 +11,8 @@ class PublicClientSingleton {
   static get(): PublicClient {
     if (!this._client) {
       this._client = createPublicClient({
-        chain: sepolia,
-        transport: http('https://1rpc.io/sepolia'), // Use a more reliable RPC endpoint
+        chain: passetHubTestnet,
+        transport: http('https://testnet-passet-hub-eth-rpc.polkadot.io'),
       });
     }
     return this._client;

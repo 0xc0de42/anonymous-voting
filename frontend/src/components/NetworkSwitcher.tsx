@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useAccount, useChainId, useSwitchChain } from 'wagmi';
-import { sepolia } from 'wagmi/chains';
+import { passetHubTestnet } from '../wagmi';
 
 export function NetworkSwitcher() {
   const { isConnected } = useAccount();
@@ -8,9 +8,9 @@ export function NetworkSwitcher() {
   const { switchChain } = useSwitchChain();
 
   useEffect(() => {
-    // Automatically switch to Sepolia when user connects if they're on a different network
-    if (isConnected && chainId !== sepolia.id) {
-      switchChain({ chainId: sepolia.id });
+    // Automatically switch to Passet Hub when user connects if they're on a different network
+    if (isConnected && chainId !== passetHubTestnet.id) {
+      switchChain({ chainId: passetHubTestnet.id });
     }
   }, [isConnected, chainId, switchChain]);
 

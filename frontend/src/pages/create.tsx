@@ -1,15 +1,15 @@
 import type { NextPage } from 'next';
 import React, { useState, useCallback } from 'react';
 import { useAccount, useWriteContract } from 'wagmi';
-import { sepolia } from 'wagmi/chains';
+import { passetHubTestnet } from '../wagmi';
 import { useRouter } from 'next/router';
 import { Layout } from '../components/Layout/Layout';
 import ZkProofSpinner from '../components/ZkProofSpinner';
 import { getArkivWallet } from '../services/arkiv';
+import { getVoteFactoryAddress, PASSET_HUB_CHAIN_ID } from '../config/contracts';
 
-// Import the same contract setup from your index page
-import voteFactoryArtifact from '../../open_vote_contracts/out/VoteFactory.sol/VoteFactory.json';
-import broadcast from '../../open_vote_contracts/broadcast/DeployOVFactory.s.sol/11155111/run-latest.json';
+// Import Vote contract artifact (we'll use this instead of VoteFactory for now)
+import voteArtifact from '../../open_vote_contracts/out/Vote.sol/Vote.json';
 
 import {
   createVote,
@@ -17,13 +17,10 @@ import {
   getRecentVotes,
 } from '../services/vote';
 
-// Derive the VoteFactory address from the broadcast transactions
-const SEPOLIA_CHAIN_ID = 11155111 as const;
-const contractAddress =
-  (broadcast.transactions.find((tx: any) => tx.contractName === 'VoteFactory')?.contractAddress ??
-    process.env.NEXT_PUBLIC_VOTE_FACTORY_ADDRESS_SEPOLIA) as `0x${string}`;
+// Use the deployed Vote contract address
+const contractAddress = getVoteFactoryAddress(PASSET_HUB_CHAIN_ID);
 
-export const voteFactoryAbi = (voteFactoryArtifact as any).abi as readonly unknown[];
+export const voteFactoryAbi = (voteArtifact as any).abi as readonly unknown[];
 
 // Integrated NewProposalForm types and component
 export type NewProposalState = {
@@ -199,7 +196,7 @@ const Create: NextPage = () => {
         arkivWallet,
         factoryAddress: contractAddress as `0x${string}`,
         data: { name, description, numberOfVoters: count },
-        chainId: sepolia.id,
+        chainId: passetHubTestnet.id,
       });
 
       appendLog(`✅ Proposal creation transaction sent: ${hash}`);

@@ -218,10 +218,10 @@ export const myTokenModulePrivateVotingAbi = [
 ] as const
 
 /**
- *
+ * Deployed Vote contract address on Passet Hub Testnet
  */
 export const myTokenModulePrivateVotingAddress = {
-  420420422: '0x0165878A594ca255338adfa4d48449f69242Eb8F',
+  420420422: '0xb5022237fe2bacc4acaacddf9c450e38502784e5',
 } as const
 
 /**
