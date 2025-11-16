@@ -162,19 +162,20 @@ export async function getRecentVotes(opts: {
       let description = 'No description available';
       let numberOfVoters = 0;
 
-      if (metadata?.result && Array.isArray(metadata.result)) {
-        [name, description, numberOfVoters] = metadata.result as [string, string, number];
-      } else {
-        console.warn(`Failed to get metadata for vote ID ${id}, using fallback values`);
-        // Optionally, try to fetch metadata individually as fallback
-        try {
-          const fallbackMetadata = await getVoteMetadata({ factoryAddress, id: BigInt(id) });
-          name = fallbackMetadata.name;
-          description = fallbackMetadata.description;
-          numberOfVoters = Number(fallbackMetadata.numberOfVoters);
-        } catch (error) {
-          console.error(`Fallback metadata fetch failed for ID ${id}:`, error);
-        }
+      // if (metadata?.result && Array.isArray(metadata.result)) {
+      //   [name, description, numberOfVoters] = metadata.result as [string, string, number];
+      // } else {
+      //   console.warn(`Failed to get metadata for vote ID ${id}, using fallback values`);
+      //   // Optionally, try to fetch metadata individually as fallback
+      // }
+
+      try {
+        const fallbackMetadata = await getVoteMetadata({ factoryAddress, id: BigInt(id) });
+        name = fallbackMetadata.name;
+        description = fallbackMetadata.description;
+        numberOfVoters = Number(fallbackMetadata.numberOfVoters);
+      } catch (error) {
+        console.error(`Fallback metadata fetch failed for ID ${id}:`, error);
       }
 
       // Create promise to fetch registered voters for each vote

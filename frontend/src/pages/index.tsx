@@ -193,6 +193,8 @@ const Home: NextPage = () => {
       let encryptedRandomValueBytes = bigIntToBytes32(encryptedRandomValue);
       let { proof, publicInputs } = await generateInscriptionProof(randomValue, encryptedRandomValueBytes, appendLog);
       const inputs: InscriptionInputs = { proof: u8ToHex(proof), encryptedRandomValue: encryptedRandomValueBytes };
+      console.log("Proof size (bytes):", proof.length);
+      console.log("inputs data:", JSON.stringify(inputs).length);
 
       if (!inputs) {
         appendLog(`⚠️ Missing inscription inputs for ${voteAddress}. Provide {proof, encryptedRandomValue}.`);
@@ -235,6 +237,8 @@ const Home: NextPage = () => {
       const encHex = bigIntToBytes32(enc);
 
       const { proof, publicInputs } = await generateVotingProof(voteHex, encHex, appendLog);
+      console.log("Proof size (bytes):", proof.length);
+      console.log("publicInputs data:", JSON.stringify(publicInputs).length);
       const proofHex = u8ToHex(proof);
 
       if (BigInt(publicInputs[0]) !== BigInt(Crypto.generator) ||
